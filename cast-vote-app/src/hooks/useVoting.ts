@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { VotingService } from "@/services/votingService";
-import { Poll, CreatePollParams, VoteParams, ContestantParams, UpdatePollParams } from "@/types/voting";
+import { Poll, CreatePollParams, VoteParams, ContestantParams, UpdatePollParams } from "@/types/frontend";
 
 export const useVotingService = () => {
   const { connection } = useConnection();
@@ -10,15 +10,7 @@ export const useVotingService = () => {
   const [votingService, setVotingService] = useState<VotingService | null>(null);
 
   useEffect(() => {
-    console.log("🔄 useVotingService: Creating VotingService...");
-    console.log("📊 Connection:", !!connection);
-    console.log("📊 Wallet:", !!wallet);
-    console.log("📊 Wallet connected:", wallet?.connected);
-    console.log("📊 Wallet public key:", wallet?.publicKey?.toString());
-    
-    // Create service even without wallet for read-only operations
     const service = new VotingService(connection, wallet);
-    console.log("✅ useVotingService: VotingService created:", !!service);
     setVotingService(service);
   }, [connection, wallet]);
 
@@ -31,10 +23,8 @@ export const usePolls = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPolls = useCallback(async () => {
-    console.log("fetchPolls called, votingService:", !!votingService);
+  const fetchPolls = useCallback(async (forceRefresh: boolean = false) => {
     if (!votingService) {
-      console.log("No voting service available");
       return;
     }
     
@@ -42,12 +32,9 @@ export const usePolls = () => {
     setError(null);
     
     try {
-      console.log("Calling getAllPolls...");
-      const pollsData = await votingService.getAllPolls();
-      console.log("Polls data received:", pollsData);
+      const pollsData = await votingService.getAllPolls(forceRefresh);
       setPolls(pollsData);
     } catch (err) {
-      console.error("Error in fetchPolls:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch polls");
     } finally {
       setLoading(false);
@@ -104,29 +91,17 @@ export const usePoll = (pollId: number) => {
     try {
       setLoading(true);
       setError(null);
-      console.log(`🔍 usePoll: Fetching poll with ID ${pollId}`);
       
-      // Get all polls and find the one with matching ID
-      console.log(`🔄 usePoll: Calling getAllPolls() to fetch updated data...`);
       const allPolls = await votingService.getAllPolls();
-      console.log(`📊 usePoll: Found ${allPolls.length} total polls`);
-      console.log(`📋 usePoll: All poll IDs:`, allPolls.map(p => ({ id: p.id, title: p.title, contestants: p.contestants?.length || 0 })));
-      
       const pollData = allPolls.find(p => p.id === pollId);
       
       if (pollData) {
-        console.log(`✅ usePoll: Found matching poll:`, pollData);
-        console.log(`👥 usePoll: Poll has ${pollData.contestants?.length || 0} contestants`);
-        console.log(`👥 usePoll: Contestants data:`, pollData.contestants);
         setPoll(pollData);
       } else {
-        console.log(`❌ usePoll: No poll found with ID ${pollId}`);
-        console.log(`🔍 usePoll: Available IDs:`, allPolls.map(p => p.id));
         setPoll(null);
         setError(`Poll with ID ${pollId} not found`);
       }
     } catch (err) {
-      console.error(`❌ usePoll: Error fetching poll ${pollId}:`, err);
       setError(err instanceof Error ? err.message : "Failed to fetch poll");
     } finally {
       setLoading(false);
@@ -230,8 +205,13 @@ export const useFinalizePoll = () => {
   const [error, setError] = useState<string | null>(null);
 
   const finalizePoll = useCallback(async (title: string) => {
+    console.log("🟡 useFinalizePoll called with title:", title);
+    console.log("🟡 votingService:", !!votingService);
+    
     if (!votingService) {
-      setError("Wallet not connected");
+      const errMsg = "Wallet not connected";
+      console.error("❌", errMsg);
+      setError(errMsg);
       return null;
     }
 
@@ -239,10 +219,15 @@ export const useFinalizePoll = () => {
     setError(null);
 
     try {
+      console.log("🟡 Calling votingService.finalizePoll...");
       const tx = await votingService.finalizePoll(title);
+      console.log("🟡 finalizePoll returned:", tx);
       return tx;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to finalize poll");
+      const errMsg = err instanceof Error ? err.message : "Failed to finalize poll";
+      console.error("❌ useFinalizePoll error:", err);
+      console.error("❌ Error message:", errMsg);
+      setError(errMsg);
       return null;
     } finally {
       setLoading(false);

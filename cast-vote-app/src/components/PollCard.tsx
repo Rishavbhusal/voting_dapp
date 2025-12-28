@@ -1,12 +1,17 @@
-import { Link } from "react-router-dom";
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Users, Trophy } from "lucide-react";
 import { format } from "date-fns";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { useVotingService } from "@/hooks/useVoting";
 
 interface PollCardProps {
   poll: {
-    id: string;
+    id: number | string;
     title: string;
     description: string;
     image: string;
@@ -19,10 +24,36 @@ interface PollCardProps {
 }
 
 const PollCard = ({ poll }: PollCardProps) => {
-  const now = new Date();
-  const isUpcoming = now < poll.startsAt;
-  const isActive = now >= poll.startsAt && now <= poll.endsAt;
-  const isEnded = now > poll.endsAt;
+  const { connection } = useConnection();
+  const votingService = useVotingService();
+  const [blockchainTime, setBlockchainTime] = useState<number | null>(null);
+
+  // Fetch blockchain time once when component mounts
+  useEffect(() => {
+    if (votingService && connection) {
+      const fetchBlockchainTime = async () => {
+        try {
+          const bTime = await votingService.getBlockchainTime();
+          setBlockchainTime(bTime);
+        } catch (error) {
+          console.warn('Could not fetch blockchain time for PollCard:', error);
+        }
+      };
+      fetchBlockchainTime();
+    }
+  }, [votingService, connection]);
+
+  // Convert poll times to seconds for comparison
+  const pollStartsAtSeconds = Math.floor(poll.startsAt.getTime() / 1000);
+  const pollEndsAtSeconds = Math.floor(poll.endsAt.getTime() / 1000);
+  
+  // Use blockchain time if available, otherwise fall back to client time
+  const effectiveTime = blockchainTime || Math.floor(Date.now() / 1000);
+  
+  // Check status based on effective time (blockchain time if available)
+  const isUpcoming = effectiveTime < pollStartsAtSeconds;
+  const isActive = effectiveTime >= pollStartsAtSeconds && effectiveTime <= pollEndsAtSeconds;
+  const isEnded = effectiveTime > pollEndsAtSeconds;
 
   const getStatusBadge = () => {
     if (poll.finalized) {
@@ -38,7 +69,7 @@ const PollCard = ({ poll }: PollCardProps) => {
   };
 
   return (
-    <Link to={`/poll/${poll.id}`}>
+    <Link href={`/poll/${poll.id}`}>
       <Card className="glass-card overflow-hidden group hover:scale-[1.02] transition-all duration-300 hover:glow-primary">
         <div className="relative h-48 overflow-hidden">
           <img
@@ -64,7 +95,7 @@ const PollCard = ({ poll }: PollCardProps) => {
               <Calendar className="w-4 h-4" />
               <span>
                 {isActive ? "Ends" : isUpcoming ? "Starts" : "Ended"}{" "}
-                {format(isActive || isUpcoming ? poll.endsAt : poll.endsAt, "MMM d, yyyy")}
+                {format(isActive || isUpcoming ? poll.endsAt : poll.endsAt, "MMM d, yyyy 'at' h:mm a")}
               </span>
             </div>
           </div>

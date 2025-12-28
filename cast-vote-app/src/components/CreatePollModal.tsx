@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useCreatePoll } from "@/hooks/useVoting";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { Plus, Loader2 } from "lucide-react";
+import { useCreatePoll, useVotingService } from "@/hooks/useVoting";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { Plus, Loader2, AlertTriangle } from "lucide-react";
 
 interface CreatePollModalProps {
   onSuccess?: () => void;
@@ -14,7 +14,9 @@ interface CreatePollModalProps {
 
 export const CreatePollModal = ({ onSuccess }: CreatePollModalProps) => {
   const { connected } = useWallet();
+  const { connection } = useConnection();
   const { createPoll, loading, error } = useCreatePoll();
+  const votingService = useVotingService();
   
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -27,6 +29,25 @@ export const CreatePollModal = ({ onSuccess }: CreatePollModalProps) => {
     endTime: "",
   });
   const [titleError, setTitleError] = useState("");
+  const [blockchainTime, setBlockchainTime] = useState<number | null>(null);
+  const [timeDifference, setTimeDifference] = useState<number | null>(null);
+
+  // Fetch blockchain time when modal opens
+  useEffect(() => {
+    if (open && votingService && connection) {
+      const fetchBlockchainTime = async () => {
+        try {
+          const bTime = await votingService.getBlockchainTime();
+          const clientTime = Math.floor(Date.now() / 1000);
+          setBlockchainTime(bTime);
+          setTimeDifference(clientTime - bTime);
+        } catch (error) {
+          // Silent fail
+        }
+      };
+      fetchBlockchainTime();
+    }
+  }, [open, votingService, connection]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,43 +104,68 @@ export const CreatePollModal = ({ onSuccess }: CreatePollModalProps) => {
       return;
     }
 
-    // Use the user's selected dates but ensure they're valid
     const now = new Date();
-    const minStartTime = new Date(now.getTime() - 5 * 60 * 1000); // Allow 5 minutes in the past
+    const minStartTime = new Date(now.getTime() - 5 * 60 * 1000);
     
-    console.log('📅 Original UI dates:');
-    console.log('Start from UI:', startDate.toLocaleString());
-    console.log('End from UI:', endDate.toLocaleString());
-    console.log('Current time:', now.toLocaleString());
-    
-    // Only adjust if start time is more than 5 minutes in the past
     let finalStartTime = startDate;
     if (startDate < minStartTime) {
-      finalStartTime = new Date(now.getTime() + 1 * 60 * 1000); // 1 minute from now
-      console.log('⚠️ Start time was too far in the past, adjusted to:', finalStartTime.toLocaleString());
-    } else {
-      console.log('✅ Using your selected start time:', finalStartTime.toLocaleString());
+      finalStartTime = new Date(now.getTime() + 1 * 60 * 1000);
     }
     
-    // Ensure end time is after start time
     let finalEndTime = endDate;
     if (endDate <= finalStartTime) {
-      finalEndTime = new Date(finalStartTime.getTime() + 60 * 60 * 1000); // 1 hour later
-      console.log('⚠️ End time was before start time, adjusted to:', finalEndTime.toLocaleString());
-    } else {
-      console.log('✅ Using your selected end time:', finalEndTime.toLocaleString());
+      finalEndTime = new Date(finalStartTime.getTime() + 60 * 60 * 1000);
     }
+
+    // Adjust times to be relative to blockchain time if there's a significant difference
+    let adjustedStartTime = finalStartTime.getTime();
+    let adjustedEndTime = finalEndTime.getTime();
     
-    console.log('🕐 Final dates being used:');
-    console.log('Start:', finalStartTime.toLocaleString());
-    console.log('End:', finalEndTime.toLocaleString());
+    if (blockchainTime && timeDifference && Math.abs(timeDifference) > 60) {
+      // User wants poll to start at: finalStartTime (their selected time)
+      // Blockchain time is: blockchainTime (current blockchain time in seconds)
+      // Time difference: timeDifference = clientTime - blockchainTime (positive if blockchain is behind)
+      //
+      // The goal: Make the poll start at the user's selected time, accounting for blockchain clock being behind
+      //
+      // If user selects "now" (client time), we want poll to start "now" from blockchain's perspective
+      // If blockchain is 33 days behind, "now" in client time = "now + 33 days" in blockchain time
+      // So we need to set poll.starts_at to a value that, when compared to blockchain time, 
+      // will be true when blockchain time reaches the user's desired start time
+      //
+      // Solution: Calculate how long from NOW (blockchain time) until the user's desired start time
+      // Then set poll.starts_at = blockchainTime + (time until user's desired start)
+      
+      const userStartSeconds = Math.floor(finalStartTime.getTime() / 1000);
+      const userEndSeconds = Math.floor(finalEndTime.getTime() / 1000);
+      const clientNowSeconds = Math.floor(Date.now() / 1000);
+      
+      // Calculate time from blockchain "now" until user's desired start time
+      // If user wants "now": timeUntilStart = 0
+      // If user wants "in 1 hour": timeUntilStart = 3600
+      // If user wants "yesterday": timeUntilStart = negative (we'll handle this)
+      const timeUntilStartFromBlockchainNow = userStartSeconds - blockchainTime;
+      const timeUntilEndFromBlockchainNow = userEndSeconds - blockchainTime;
+      
+      if (timeUntilStartFromBlockchainNow < 60) {
+        adjustedStartTime = (blockchainTime + 60) * 1000;
+        adjustedEndTime = (blockchainTime + 3660) * 1000;
+      } else {
+        adjustedStartTime = (blockchainTime + timeUntilStartFromBlockchainNow) * 1000;
+        adjustedEndTime = (blockchainTime + timeUntilEndFromBlockchainNow) * 1000;
+        
+        if (adjustedEndTime <= adjustedStartTime) {
+          adjustedEndTime = adjustedStartTime + (60 * 60 * 1000);
+        }
+      }
+    }
 
     const result = await createPoll({
       title: formData.title,
       description: formData.description,
       image: formData.image,
-      startsAt: finalStartTime.getTime(), // Use adjusted start time
-      endsAt: finalEndTime.getTime(),   // Use adjusted end time
+      startsAt: adjustedStartTime, // Use blockchain-adjusted start time
+      endsAt: adjustedEndTime,     // Use blockchain-adjusted end time
     });
 
     if (result) {
@@ -151,6 +197,28 @@ export const CreatePollModal = ({ onSuccess }: CreatePollModalProps) => {
         <DialogHeader>
           <DialogTitle>Create New Poll</DialogTitle>
         </DialogHeader>
+        
+        {timeDifference && Math.abs(timeDifference) > 60 && (
+          <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5" />
+              <div className="text-sm text-yellow-600">
+                <p className="font-semibold mb-1">Blockchain Clock Warning</p>
+                <p className="text-xs">
+                  Blockchain time is {Math.abs(timeDifference) > 86400 
+                    ? `${Math.floor(Math.abs(timeDifference) / 86400)} days`
+                    : Math.abs(timeDifference) > 3600
+                    ? `${Math.floor(Math.abs(timeDifference) / 3600)} hours`
+                    : `${Math.floor(Math.abs(timeDifference) / 60)} minutes`
+                  } {timeDifference > 0 ? 'behind' : 'ahead'} your local time.
+                </p>
+                <p className="text-xs mt-1">
+                  Poll times will be automatically adjusted to match blockchain time.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

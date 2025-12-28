@@ -1,8 +1,16 @@
-import { Link } from "react-router-dom";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+"use client";
+
+import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Vote, Crown } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useAdmin } from "@/contexts/AdminContext";
+
+// Dynamically import WalletMultiButton with SSR disabled to prevent hydration errors
+const WalletMultiButton = dynamic(
+  async () => (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
+  { ssr: false }
+);
 
 const Navbar = () => {
   const { connected, publicKey } = useWallet();
@@ -12,7 +20,7 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2 group">
             <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
               <Vote className="w-6 h-6 text-primary" />
             </div>

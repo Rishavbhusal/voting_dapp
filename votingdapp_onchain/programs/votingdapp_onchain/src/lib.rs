@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 
-declare_id!("DExwUvcLqxYi5grCn9XtweCEPHSWUHfNAaad88ksuyhb");
+declare_id!("GKitHVjmys9uUNowfWQy1jmuDgXKXcfSjCtpNG9cuQ1E");
 
 // -----------------------
 // === CONFIGURATION ====
@@ -142,34 +142,52 @@ pub mod voting {
         Ok(())
     }
 
-    // Cast a vote for a contestant (anyone, but subject to rules)
+    // Cast a vote for a contestant
+    // Rules:
+    // 1. Poll must be in "live" state (active - between start and end time)
+    // 2. One user can only vote ONCE per poll (for one candidate only)
     pub fn vote(ctx: Context<Vote>, cid: u64) -> Result<()> {
         let poll = &mut ctx.accounts.poll;
+        // Use blockchain time (Clock::get) - accurate on devnet/mainnet
         let now = Clock::get()?.unix_timestamp;
 
-        // Poll must be active
+        // ============================================
+        // RULE 1: Poll must be in "live" state
+        // ============================================
+        // Check if poll has started using accurate blockchain time
         require!(now >= poll.starts_at, ErrorCode::PollNotStarted);
+        
+        // Check if poll has ended using accurate blockchain time
         require!(now <= poll.ends_at, ErrorCode::PollEnded);
 
-        // Prevent double voting in the poll
+        // ============================================
+        // RULE 2: One user can only vote ONCE per poll
+        // ============================================
+        // Check if this user has already voted in this poll
+        // This ensures one user can only vote for ONE candidate in one poll
         if poll.voters.contains(&ctx.accounts.payer.key()) {
             return err!(ErrorCode::AlreadyVoted);
         }
 
+        // Validate contestant ID
         let ucid = cid as usize;
         require!(ucid < poll.contestants.len(), ErrorCode::InvalidContestant);
 
-        // Register global poll vote
+        // Register the vote at poll level
+        // This marks the user as having voted in this poll
         poll.votes = poll.votes.saturating_add(1);
         poll.voters.push(*ctx.accounts.payer.key);
 
-        // Update contestant
+        // Update the specific contestant that was voted for
         let contestant = poll.contestants.get_mut(ucid).unwrap();
-        // Prevent double voting for the same contestant is redundant because we tracked at poll level,
-        // but still check contestant-level voter duplication (defensive)
+        
+        // Defensive check: ensure user hasn't voted for this contestant before
+        // (This should never happen due to poll-level check, but adds extra safety)
         if contestant.voters.contains(&ctx.accounts.payer.key()) {
             return err!(ErrorCode::AlreadyVoted);
         }
+        
+        // Increment contestant vote count and record the voter
         contestant.votes = contestant.votes.saturating_add(1);
         contestant.voters.push(*ctx.accounts.payer.key);
 
@@ -187,7 +205,8 @@ pub mod voting {
     }
 
     // Finalize poll: compute winner after poll ends and mark finalized. Anyone can call after poll end.
-    pub fn finalize_poll(ctx: Context<FinalizePoll>) -> Result<()> {
+    // Title parameter is required for PDA derivation via account constraint #[instruction(title: String)]
+    pub fn finalize_poll(ctx: Context<FinalizePoll>, _title: String) -> Result<()> {
         let poll = &mut ctx.accounts.poll;
         let now = Clock::get()?.unix_timestamp;
 

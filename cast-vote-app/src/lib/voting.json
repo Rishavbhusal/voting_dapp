@@ -1,5 +1,5 @@
 {
-  "address": "DExwUvcLqxYi5grCn9XtweCEPHSWUHfNAaad88ksuyhb",
+  "address": "GKitHVjmys9uUNowfWQy1jmuDgXKXcfSjCtpNG9cuQ1E",
   "metadata": {
     "name": "voting",
     "version": "0.1.0",
@@ -200,7 +200,12 @@
           "signer": true
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "_title",
+          "type": "string"
+        }
+      ]
     },
     {
       "name": "update_poll",
@@ -279,19 +284,7 @@
       "accounts": [
         {
           "name": "poll",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "arg",
-                "path": "title"
-              },
-              {
-                "kind": "account",
-                "path": "payer"
-              }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "payer",

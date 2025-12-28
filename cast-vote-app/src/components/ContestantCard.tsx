@@ -13,6 +13,7 @@ interface ContestantCardProps {
   isActive: boolean;
   hasVoted: boolean;
   isWinner?: boolean;
+  loading?: boolean;
   onVote: (id: number) => void;
 }
 
@@ -21,6 +22,7 @@ const ContestantCard = ({
   isActive,
   hasVoted,
   isWinner,
+  loading = false,
   onVote,
 }: ContestantCardProps) => {
   return (
@@ -59,15 +61,19 @@ const ContestantCard = ({
           </div>
         </div>
         
-        {isActive && (
+        {isActive ? (
           <Button
             variant="vote"
             className="w-full"
             onClick={() => onVote(contestant.id)}
-            disabled={hasVoted}
+            disabled={hasVoted || loading || !isActive}
           >
-            {hasVoted ? "Already Voted" : "Vote"}
+            {loading ? "Processing..." : hasVoted ? "Already Voted" : "Vote"}
           </Button>
+        ) : (
+          <div className="text-center text-sm text-muted-foreground py-2">
+            Poll not active
+          </div>
         )}
       </CardContent>
     </Card>

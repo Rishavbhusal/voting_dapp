@@ -33,11 +33,6 @@ const PollDetail = () => {
         vp.pollTitle === poll.title && vp.walletAddress === publicKey.toString()
       );
       setHasVotedLocally(hasVoted);
-      console.log('🔄 Checked localStorage for voting status:', { 
-        pollTitle: poll.title, 
-        walletAddress: publicKey.toString(), 
-        hasVoted 
-      });
     }
   }, [poll, publicKey]);
 
@@ -56,9 +51,6 @@ const PollDetail = () => {
   }
 
   if (error || !poll) {
-    console.log("❌ PollDetail: Showing error state");
-    console.log("  - Error:", error);
-    console.log("  - Poll is null:", !poll);
     return (
       <div className="min-h-screen pb-20">
         <Navbar />
@@ -76,47 +68,65 @@ const PollDetail = () => {
     );
   }
 
-  const now = new Date();
-  const isActive = now.getTime() >= poll.startsAt && now.getTime() <= poll.endsAt;
-  const isUpcoming = now.getTime() < poll.startsAt;
+  const now = Date.now();
+  const isActive = now >= poll.startsAt && now <= poll.endsAt;
+  const isUpcoming = now < poll.startsAt;
   
   // Check if current user has voted by looking at poll's voters list OR local state
   const userHasVotedFromBlockchain = publicKey ? poll.voters.includes(publicKey.toString()) : false;
   const userHasVoted = userHasVotedFromBlockchain || hasVotedLocally;
 
-  // Debug logging for admin functionality and voting status
-  console.log("🔍 PollDetail Debug Info:");
-  console.log("Connected wallet:", connected);
-  console.log("Public key:", publicKey?.toString());
-  console.log("Is admin:", isAdmin);
-  console.log("Poll startsAt:", new Date(poll.startsAt));
-  console.log("Poll endsAt:", new Date(poll.endsAt));
-  console.log("Current time:", now);
-  console.log("Is upcoming:", isUpcoming);
-  console.log("Is active:", isActive);
-  console.log("Should show Add Contestant button:", isAdmin && isUpcoming);
-  console.log("Button visibility breakdown:", {
-    isAdmin,
-    isUpcoming,
-    showButton: isAdmin && isUpcoming
-  });
-  console.log("🗳️ Voting Status:");
-  console.log("Poll voters:", poll.voters);
-  console.log("Poll voters length:", poll.voters?.length || 0);
-  console.log("Current user public key:", publicKey?.toString());
-  console.log("Has voted from blockchain:", userHasVotedFromBlockchain);
-  console.log("Has voted locally:", hasVotedLocally);
-  console.log("User has voted (final):", userHasVoted);
-  console.log("Voters list details:", poll.voters?.map((voter, index) => ({
-    index,
-    voter,
-    matches: voter === publicKey?.toString()
-  })));
-
   const handleVote = async (contestantId: number) => {
     if (!connected) {
       toast.error("Please connect your wallet to vote");
       return;
+    }
+
+    // Validate poll is active before attempting to vote
+    const currentTime = Date.now();
+    
+    // CRITICAL: Check poll start time (blockchain uses Unix timestamp in seconds)
+    // poll.startsAt is in milliseconds, so we compare directly
+    if (currentTime < poll.startsAt) {
+      const timeUntilStart = Math.ceil((poll.startsAt - currentTime) / 1000 / 60); // minutes
+      toast.error(`This poll has not started yet. It will start in ${timeUntilStart} minute(s).`);
+      console.error('❌ Vote blocked: Poll not started', {
+        currentTime,
+        currentTimeSeconds: Math.floor(currentTime / 1000),
+        pollStartTime: poll.startsAt,
+        pollStartTimeSeconds: Math.floor(poll.startsAt / 1000),
+        timeUntilStart: poll.startsAt - currentTime,
+        timeUntilStartSeconds: Math.floor((poll.startsAt - currentTime) / 1000),
+        isActive,
+      });
+      return; // CRITICAL: Return early to prevent transaction
+    }
+    
+    if (currentTime > poll.endsAt) {
+      toast.error("This poll has ended. Voting is no longer available.");
+      console.error('❌ Vote blocked: Poll ended', {
+        currentTime,
+        pollEndTime: poll.endsAt,
+        timeSinceEnd: currentTime - poll.endsAt,
+        isActive,
+      });
+      return; // CRITICAL: Return early to prevent transaction
+    }
+
+    if (userHasVoted) {
+      toast.error("You have already voted in this poll.");
+      return; // CRITICAL: Return early to prevent transaction
+    }
+
+    if (!isActive) {
+      toast.error("This poll is not currently active. Please check the poll status.");
+      console.error('❌ Vote blocked: Poll not active', {
+        currentTime,
+        pollStartTime: poll.startsAt,
+        pollEndTime: poll.endsAt,
+        isActive,
+      });
+      return; // CRITICAL: Return early to prevent transaction
     }
 
     try {
@@ -146,9 +156,18 @@ const PollDetail = () => {
         setHasVotedLocally(true); // Immediately disable vote button
         refetch(); // Refresh poll data to show updated vote counts and voters list
       }
-    } catch (error) {
-      console.error("Voting error:", error);
-      toast.error("Failed to submit vote");
+    } catch (error: any) {
+      // Handle specific error messages
+      if (error?.message?.includes("PollNotStarted") || error?.message?.includes("poll has not started")) {
+        toast.error("This poll has not started yet. Please wait until the poll begins.");
+      } else if (error?.message?.includes("PollEnded") || error?.message?.includes("poll ended")) {
+        toast.error("This poll has ended. Voting is no longer available.");
+      } else if (error?.message?.includes("AlreadyVoted") || error?.message?.includes("already voted")) {
+        toast.error("You have already voted in this poll.");
+      } else {
+        toast.error(error?.message || "Failed to submit vote");
+      }
+      console.error('❌ Vote error:', error);
       // Don't update localStorage or hasVotedLocally if transaction failed
     }
   };
@@ -160,30 +179,18 @@ const PollDetail = () => {
         return;
       }
       
-      console.log("🔄 Adding contestant:", contestantData);
-      console.log("📊 Poll before add:", poll);
-      console.log("📊 Poll timing:", {
-        startsAt: new Date(poll.startsAt).toISOString(),
-        currentTime: new Date().toISOString(),
-        isUpcoming: isUpcoming
-      });
-      
       const result = await addContestant({
         title: poll.title,
         name: contestantData.name,
         image: contestantData.image,
       });
       
-      console.log("✅ Contestant added successfully:", result);
       toast.success(`Contestant "${contestantData.name}" added successfully!`);
       setShowAddContestant(false);
       
-      console.log("🔄 Refreshing poll data...");
       await refetch();
-      console.log("✅ Poll data refreshed");
       
     } catch (error) {
-      console.error("❌ Add contestant error:", error);
       toast.error("Failed to add contestant: " + error.message);
     }
   };
@@ -191,7 +198,7 @@ const PollDetail = () => {
   const getStatusBadge = () => {
     if (poll.finalized) {
       return <Badge className="bg-accent text-accent-foreground">Finalized</Badge>;
-    }
+    } 
     if (isActive) {
       return <Badge className="bg-primary text-primary-foreground glow-primary">Live</Badge>;
     }
@@ -208,7 +215,6 @@ const PollDetail = () => {
       <div className="container mx-auto px-4 pt-24">
         <Link to="/">
           <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Polls
           </Button>
         </Link>
@@ -255,12 +261,7 @@ const PollDetail = () => {
             <h2 className="text-3xl font-bold">Contestants</h2>
             {isAdmin && isUpcoming && (
               <Button 
-                onClick={() => {
-                  console.log("🔄 Add Contestant button clicked!");
-                  console.log("📊 showAddContestant before:", showAddContestant);
-                  setShowAddContestant(true);
-                  console.log("📊 showAddContestant after:", true);
-                }}
+                onClick={() => setShowAddContestant(true)}
                 className="flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -268,17 +269,6 @@ const PollDetail = () => {
               </Button>
             )}
           </div>
-          
-          {/* Debug info for button visibility */}
-          <div className="mb-4 p-3 bg-blue-900/20 rounded-lg text-sm text-blue-200">
-            <p><strong>Debug Info:</strong></p>
-            <p>Is Admin: {isAdmin ? "✅ Yes" : "❌ No"}</p>
-            <p>Is Upcoming: {isUpcoming ? "✅ Yes" : "❌ No"}</p>
-            <p>Show Add Button: {isAdmin && isUpcoming ? "✅ Yes" : "❌ No"}</p>
-            <p>Poll Start: {new Date(poll.startsAt).toLocaleString()}</p>
-            <p>Current Time: {new Date().toLocaleString()}</p>
-          </div>
-          
           
           {isAdmin && !isUpcoming && (
             <p className="text-sm text-muted-foreground mb-4">
@@ -334,10 +324,7 @@ const PollDetail = () => {
         {/* Add Contestant Modal */}
         <AddContestantModal
           isOpen={showAddContestant}
-          onClose={() => {
-            console.log("🔄 Modal onClose called");
-            setShowAddContestant(false);
-          }}
+          onClose={() => setShowAddContestant(false)}
           onSubmit={handleAddContestant}
           loading={addingContestant}
         />

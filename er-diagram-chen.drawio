@@ -1,0 +1,222 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="test" type="device">
+  <diagram name="ER Diagram - Chen Style" id="chen-er-diagram">
+    <mxGraphModel dx="3200" dy="2400" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3200" pageHeight="2400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Entities - Top Row, Very Well Spaced -->
+        <mxCell id="admin-entity" value="ADMIN" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fontSize=20;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="300" y="50" width="200" height="100" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="poll-entity" value="POLL" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fontSize=20;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="50" width="200" height="100" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="contestant-entity" value="CONTESTANT" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fontSize=20;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="2300" y="50" width="200" height="100" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="voter-entity" value="VOTER" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;fontSize=20;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1800" width="200" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- ADMIN Attributes - Single vertical column, far right of entity -->
+        <mxCell id="admin-pk" value="&lt;u&gt;public_key&lt;/u&gt;" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="300" y="200" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- POLL Attributes - Single vertical column, well spaced -->
+        <mxCell id="poll-id" value="&lt;u&gt;id&lt;/u&gt;" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="200" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-title" value="title" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="290" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-description" value="description" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="380" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-image" value="image" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="470" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-director" value="director" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="560" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-timestamp" value="timestamp" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="650" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-starts_at" value="starts_at" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="740" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-ends_at" value="ends_at" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="830" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-votes" value="votes" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="920" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-finalized" value="finalized" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1010" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-deleted" value="deleted" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1100" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="poll-winner" value="winner (FK)" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1190" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- CONTESTANT Attributes - Single vertical column -->
+        <mxCell id="contestant-id" value="&lt;u&gt;id&lt;/u&gt;" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="2300" y="200" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="contestant-name" value="name" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="2300" y="290" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="contestant-image" value="image" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="2300" y="380" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="contestant-voter" value="voter" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="2300" y="470" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="contestant-votes" value="votes" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="2300" y="560" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- VOTER Attributes -->
+        <mxCell id="voter-pk" value="&lt;u&gt;public_key&lt;/u&gt;" style="ellipse;whiteSpace=wrap;html=1;fontSize=13;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1950" width="200" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Relationships - Diamonds, positioned in middle sections to avoid overlap -->
+        <mxCell id="rel-creates" value="CREATES" style="rhombus;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="550" y="75" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rel-contains" value="CONTAINS" style="rhombus;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1550" y="75" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rel-adds" value="ADDS" style="rhombus;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="550" y="700" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rel-votes-poll" value="VOTES_IN" style="rhombus;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="1300" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rel-votes-contestant" value="VOTES_FOR" style="rhombus;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="2300" y="1300" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="rel-winner" value="WINNER" style="rhombus;whiteSpace=wrap;html=1;fontSize=14;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1550" y="700" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Relationship Lines with Crow's Foot Notation -->
+        <mxCell id="line-admin-creates" value="" style="endArrow=ERone;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="admin-entity" target="rel-creates">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-creates-poll" value="" style="endArrow=ERmany;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="rel-creates" target="poll-entity">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="line-poll-contains" value="" style="endArrow=ERone;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="poll-entity" target="rel-contains">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-contains-contestant" value="" style="endArrow=ERmany;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="rel-contains" target="contestant-entity">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="line-admin-adds" value="" style="endArrow=ERone;html=1;rounded=0;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="admin-entity" target="rel-adds">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-adds-contestant" value="" style="endArrow=ERmany;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="rel-adds" target="contestant-entity">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="line-poll-votes" value="" style="endArrow=ERone;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="poll-entity" target="rel-votes-poll">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-votes-poll-voter" value="" style="endArrow=ERmany;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="rel-votes-poll" target="voter-entity">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="line-contestant-votes" value="" style="endArrow=ERone;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="contestant-entity" target="rel-votes-contestant">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-votes-contestant-voter" value="" style="endArrow=ERmany;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="rel-votes-contestant" target="voter-entity">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="line-poll-winner" value="" style="endArrow=ERone;html=1;rounded=0;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="poll-entity" target="rel-winner">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-winner-contestant" value="" style="endArrow=ERzeroToOne;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;strokeWidth=3;" edge="1" parent="1" source="rel-winner" target="contestant-entity">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <!-- Attribute connections - Clean vertical lines -->
+        <mxCell id="line-admin-pk" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="admin-entity" target="admin-pk">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="line-poll-id" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-entity" target="poll-id">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-title" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-id" target="poll-title">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-desc" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-title" target="poll-description">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-image" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-description" target="poll-image">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-director" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-image" target="poll-director">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-timestamp" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-director" target="poll-timestamp">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-starts_at" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-timestamp" target="poll-starts_at">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-ends_at" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-starts_at" target="poll-ends_at">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-votes-attr" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-ends_at" target="poll-votes">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-finalized" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-votes" target="poll-finalized">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-deleted" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-finalized" target="poll-deleted">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-poll-winner-attr" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="poll-deleted" target="poll-winner">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="line-contestant-id" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="contestant-entity" target="contestant-id">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-contestant-name" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="contestant-id" target="contestant-name">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-contestant-image" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="contestant-name" target="contestant-image">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-contestant-voter" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="contestant-image" target="contestant-voter">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="line-contestant-votes-attr" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="contestant-voter" target="contestant-votes">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="line-voter-pk" value="" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeWidth=2;" edge="1" parent="1" source="voter-entity" target="voter-pk">
+          <mxGeometry width="50" height="50" relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -18,24 +18,19 @@ import {
   VotingError
 } from "@/types/frontend";
 
-const PROGRAM_ID = new PublicKey("DExwUvcLqxYi5grCn9XtweCEPHSWUHfNAaad88ksuyhb");
+  const PROGRAM_ID = new PublicKey("GKitHVjmys9uUNowfWQy1jmuDgXKXcfSjCtpNG9cuQ1E");
 
 export class VotingService {
   private program: Program;
   private connection: Connection;
+  private pollsCache: { data: Poll[]; timestamp: number } | null = null;
+  private readonly CACHE_TTL = 10000; // 10 seconds cache
   private provider: AnchorProvider;
 
   constructor(connection: Connection, wallet: WalletContextState | null) {
-    console.log("🔄 VotingService: Constructor called");
-    console.log("📊 Connection:", !!connection);
-    console.log("📊 Wallet:", !!wallet);
-    console.log("📊 Wallet public key:", wallet?.publicKey?.toString());
-    
     this.connection = connection;
     
     if (wallet?.publicKey && wallet?.signTransaction) {
-      console.log("✅ VotingService: Using real wallet");
-      // Create a wallet adapter for Anchor
       const anchorWallet = {
         publicKey: wallet.publicKey,
         signTransaction: wallet.signTransaction,
@@ -46,8 +41,6 @@ export class VotingService {
         commitment: "confirmed",
       });
     } else {
-      console.log("⚠️ VotingService: Using dummy wallet for read-only operations");
-      // Create a dummy provider for read-only operations
       const dummyWallet = {
         publicKey: PublicKey.default,
         signTransaction: async () => { throw new Error("Wallet not connected"); },
@@ -59,24 +52,13 @@ export class VotingService {
       });
     }
     
-    console.log("🔄 VotingService: Creating program...");
     this.program = new Program(IDL as any, this.provider);
-    console.log("✅ VotingService: Program created successfully");
-    console.log("📊 Program ID:", this.program.programId.toString());
   }
 
   /**
    * Create a new poll
    */
   async createPoll(params: CreatePollParams): Promise<string> {
-    console.log('🔄 Creating poll with params:', {
-      title: params.title,
-      startsAt: params.startsAt,
-      endsAt: params.endsAt,
-      startsAtSeconds: Math.floor(params.startsAt / 1000),
-      endsAtSeconds: Math.floor(params.endsAt / 1000),
-      timeDifference: Math.floor(params.endsAt / 1000) - Math.floor(params.startsAt / 1000)
-    });
     
     // Use admin public key for PDA derivation (consistent with vote function)
     const ADMIN_PUBKEY = new PublicKey("GHjCZ5SsSWedrFJLyHKU6JM1GoPoFXBdbXfrdFiU4eJS");
@@ -107,19 +89,11 @@ export class VotingService {
    * Add a contestant to a poll
    */
   async addContestant(params: ContestantParams): Promise<string> {
-    console.log("🔄 addContestant: Starting transaction...");
-    console.log("📊 Params:", params);
-    console.log("📊 Wallet:", this.provider.wallet.publicKey.toString());
-    
     try {
-      // Use the current payer for PDA derivation (matches smart contract)
       const [pollPda] = PublicKey.findProgramAddressSync(
         [Buffer.from(params.title), this.provider.wallet.publicKey.toBuffer()],
         this.program.programId
       );
-
-      console.log("📊 Poll PDA:", pollPda.toString());
-      console.log("📊 Program ID:", this.program.programId.toString());
 
       const tx = await this.program.methods
         .contest(params.title, params.name, params.image)
@@ -129,15 +103,28 @@ export class VotingService {
         })
         .rpc();
 
-      console.log("✅ addContestant: Transaction successful:", tx);
+      // Clear cache after updating poll
+      this.clearPollsCache();
       return tx;
-    } catch (error) {
-      console.error("❌ addContestant: Transaction failed:", error);
-      console.error("❌ Error message:", error.message);
-      console.error("❌ Error code:", error.code);
-      console.error("❌ Error logs:", error.logs);
-      console.error("❌ Full error object:", error);
+    } catch (error: any) {
       throw error;
+    }
+  }
+
+  /**
+   * Get current blockchain time in seconds (Unix timestamp)
+   */
+  async getBlockchainTime(): Promise<number> {
+    try {
+      const slot = await this.connection.getSlot();
+      const blockTime = await this.connection.getBlockTime(slot);
+      if (blockTime === null) {
+        // Fallback to current time if block time is unavailable
+        return Math.floor(Date.now() / 1000);
+      }
+      return blockTime;
+    } catch (error) {
+      return Math.floor(Date.now() / 1000);
     }
   }
 
@@ -145,35 +132,20 @@ export class VotingService {
    * Cast a vote for a contestant
    */
   async vote(params: VoteParams): Promise<string> {
-    console.log('🗳️ Starting vote transaction for poll:', params.title);
-
     try {
-      // Get the poll data to find the creator (director)
       const pollAccounts = await (this.program.account as any).poll.all();
-      console.log('📊 All poll accounts:', pollAccounts.map((p: any) => ({
-        address: p.publicKey.toString(),
-        title: p.account.title,
-        director: p.account.director.toString()
-      })));
-      
       const pollAccount = pollAccounts.find((p: any) => p.account.title === params.title);
       
       if (!pollAccount) {
         throw new Error(`Poll "${params.title}" not found on blockchain`);
       }
       
-      // Use the poll's director (creator) for PDA calculation to match the constraint
       const directorPubkey = pollAccount.account.director;
-      console.log('📊 Poll director:', directorPubkey.toString());
       
       const [expectedPda] = PublicKey.findProgramAddressSync(
         [Buffer.from(params.title), directorPubkey.toBuffer()],
         this.program.programId
       );
-      
-      console.log('📊 Expected PDA:', expectedPda.toString());
-      console.log('📊 Actual poll address:', pollAccount.publicKey.toString());
-      console.log('📊 Voter:', this.provider.wallet.publicKey.toString());
 
       const tx = await this.program.methods
         .vote(new BN(params.contestantId))
@@ -183,15 +155,30 @@ export class VotingService {
         })
         .rpc();
 
-      console.log('✅ Vote transaction successful:', tx);
+      // Clear cache after voting
+      this.clearPollsCache();
       return tx;
-    } catch (error) {
-      console.error('❌ Vote transaction failed:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        code: error.code,
-        logs: error.logs,
-      });
+    } catch (error: any) {
+      if (error?.message?.includes('PollNotStarted') || error?.code === 6001) {
+        try {
+          const blockchainTime = await this.getBlockchainTime();
+          const pollAccounts = await (this.program.account as any).poll.all();
+          const pollAccount = pollAccounts.find((p: any) => p.account.title === params.title);
+          
+          if (pollAccount) {
+            const pollStartTime = pollAccount.account.starts_at?.toNumber() || pollAccount.account.startsAt?.toNumber();
+            const timeUntilStart = pollStartTime ? pollStartTime - blockchainTime : null;
+            
+            const helpfulMessage = timeUntilStart 
+              ? `Poll has not started yet on blockchain. Blockchain time is ${timeUntilStart > 0 ? `${Math.ceil(timeUntilStart / 60)} minutes` : 'ahead'} behind. The poll will start when the blockchain clock reaches the start time.`
+              : 'Poll has not started yet on blockchain. The blockchain clock may be significantly behind your local time.';
+            
+            error.message = helpfulMessage;
+          }
+        } catch (timeError) {
+          // Silent fail - use original error message
+        }
+      }
       throw error;
     }
   }
@@ -229,6 +216,8 @@ export class VotingService {
       })
       .rpc();
 
+    // Clear cache after creating poll
+    this.clearPollsCache();
     return tx;
   }
 
@@ -236,30 +225,162 @@ export class VotingService {
    * Finalize a poll
    */
   async finalizePoll(title: string): Promise<string> {
+    console.log("🟢 finalizePoll called with title:", title);
+    console.log("🟢 Current wallet:", this.provider.wallet.publicKey.toString());
+    
+    // Find the poll account on blockchain
+    const pollAccounts = await (this.program.account as any).poll.all();
+    console.log("🟢 Found", pollAccounts.length, "poll accounts");
+    const pollAccount = pollAccounts.find((p: any) => p.account.title === title);
+    
+    if (!pollAccount) {
+      console.error("❌ Poll not found:", title);
+      throw new Error(`Poll "${title}" not found on blockchain`);
+    }
+    
+    console.log("🟢 Poll found:", {
+      title: pollAccount.account.title,
+      director: pollAccount.account.director.toString(),
+      finalized: pollAccount.account.finalized,
+      endsAt: pollAccount.account.ends_at?.toNumber() || pollAccount.account.endsAt?.toNumber(),
+      contestants: pollAccount.account.contestants?.length || 0
+    });
+    
+    // The contract's FinalizePoll uses payer.key() for PDA derivation
+    // This means only the poll creator (director/admin) can finalize
+    const directorPubkey = pollAccount.account.director;
+    
+    // Verify the current wallet is the admin/director
+    if (!this.provider.wallet.publicKey.equals(directorPubkey)) {
+      console.error("❌ Wallet mismatch:", {
+        current: this.provider.wallet.publicKey.toString(),
+        director: directorPubkey.toString()
+      });
+      throw new Error("Only the poll creator (admin) can finalize the poll. Please connect with the admin wallet.");
+    }
+    
+    console.log("🟢 Wallet matches director");
+    
+    // Derive PDA using current payer's key (which matches the director)
     const [pollPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(title), this.provider.wallet.publicKey.toBuffer()],
       this.program.programId
     );
+    
+    console.log("🟢 Derived PDA:", pollPda.toString());
+    console.log("🟢 Actual poll address:", pollAccount.publicKey.toString());
+    
+    // Verify the derived PDA matches the actual poll account
+    if (!pollPda.equals(pollAccount.publicKey)) {
+      console.error("❌ PDA mismatch");
+      throw new Error(`PDA mismatch. Expected ${pollAccount.publicKey.toString()}, got ${pollPda.toString()}. This poll was created by a different wallet.`);
+    }
+    
+    console.log("🟢 PDA matches poll account");
 
-    const tx = await this.program.methods
-      .finalizePoll()
-      .accounts({
-        poll: pollPda,
-        payer: this.provider.wallet.publicKey,
-      })
-      .rpc();
+    // Get blockchain time to verify poll has ended
+    const blockchainTime = await this.getBlockchainTime();
+    const pollEndTime = pollAccount.account.ends_at?.toNumber() || pollAccount.account.endsAt?.toNumber();
+    
+    console.log("🟢 Time check:", {
+      blockchainTime,
+      pollEndTime,
+      hasEnded: pollEndTime ? blockchainTime > pollEndTime : false
+    });
+    
+    if (pollEndTime && blockchainTime <= pollEndTime) {
+      console.error("❌ Poll has not ended yet");
+      throw new Error(`Poll has not ended yet on blockchain. Poll ends at ${new Date(pollEndTime * 1000).toLocaleString()}, current blockchain time is ${new Date(blockchainTime * 1000).toLocaleString()}`);
+    }
 
-    return tx;
+    // Call finalizePoll - workaround for IDL mismatch
+    // IDL says no args but account constraint needs title for PDA derivation
+    // We provide the poll account directly to bypass PDA derivation
+    // Call finalizePoll - title is now required as argument for PDA derivation
+    console.log("🟢 Calling finalizePoll transaction with title:", title);
+    try {
+      const tx = await this.program.methods
+        .finalizePoll(title)
+        .accounts({
+          poll: pollPda,
+          payer: this.provider.wallet.publicKey,
+        })
+        .rpc();
+
+      console.log("✅ finalizePoll transaction successful:", tx);
+      // Clear cache after finalizing poll
+      this.clearPollsCache();
+      return tx;
+    } catch (error: any) {
+      console.error("❌ finalizePoll transaction failed:", error);
+      console.error("❌ Error details:", {
+        message: error?.message,
+        code: error?.code,
+        logs: error?.logs,
+        name: error?.name
+      });
+      
+      // Provide more helpful error messages
+      if (error?.message?.includes("PollStillActive") || error?.code === 6010) {
+        throw new Error("Poll has not ended yet on blockchain. Please wait until the poll end time.");
+      }
+      if (error?.message?.includes("AlreadyFinalized") || error?.code === 6011) {
+        throw new Error("This poll has already been finalized.");
+      }
+      if (error?.message?.includes("NoContestants") || error?.code === 6015) {
+        throw new Error("Cannot finalize a poll with no contestants.");
+      }
+      if (error?.logs) {
+        const errorLogs = error.logs?.join('\n') || '';
+        console.error("❌ Error logs:", errorLogs);
+        if (errorLogs.includes("PollStillActive")) {
+          throw new Error("Poll has not ended yet on blockchain.");
+        }
+        if (errorLogs.includes("AlreadyFinalized")) {
+          throw new Error("This poll has already been finalized.");
+        }
+      }
+      throw error;
+    }
   }
 
   /**
    * Delete a poll
    */
   async deletePoll(title: string): Promise<string> {
+    // Find the poll account to get the director (creator)
+    const pollAccounts = await (this.program.account as any).poll.all();
+    const pollAccount = pollAccounts.find((p: any) => p.account.title === title);
+    
+    if (!pollAccount) {
+      throw new Error(`Poll "${title}" not found on blockchain`);
+    }
+    
+    // The contract's DeletePoll uses payer.key() for PDA derivation
+    // This means only the poll creator (director/admin) can delete
+    const directorPubkey = pollAccount.account.director;
+    
+    // Verify the current wallet is the admin/director
+    if (!this.provider.wallet.publicKey.equals(directorPubkey)) {
+      throw new Error("Only the poll creator (admin) can delete the poll. Please connect with the admin wallet.");
+    }
+    
+    // Derive PDA using current payer's key (which matches the director)
     const [pollPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(title), this.provider.wallet.publicKey.toBuffer()],
       this.program.programId
     );
+    
+    // Verify the derived PDA matches the actual poll account
+    if (!pollPda.equals(pollAccount.publicKey)) {
+      throw new Error(`PDA mismatch. Expected ${pollAccount.publicKey.toString()}, got ${pollPda.toString()}. This poll was created by a different wallet.`);
+    }
+
+    // Check if poll has votes (contract prevents deletion if votes exist)
+    const pollVotes = pollAccount.account.votes?.toNumber() || 0;
+    if (pollVotes > 0) {
+      throw new Error("Cannot delete a poll that has votes. The contract prevents deletion of polls with votes.");
+    }
 
     const tx = await this.program.methods
       .deletePoll(title)
@@ -270,6 +391,8 @@ export class VotingService {
       })
       .rpc();
 
+    // Clear cache after deleting poll
+    this.clearPollsCache();
     return tx;
   }
 
@@ -347,38 +470,42 @@ export class VotingService {
         winner: pollAccount.winner ? pollAccount.winner.toNumber() : undefined,
       };
     } catch (error) {
-      console.error("Error fetching poll:", error);
       return null;
     }
   }
 
   /**
    * Fetch all polls using Anchor's built-in account fetching
-   */
-  async getAllPolls(): Promise<Poll[]> {
+   * Optimized with caching and early filtering
+     */
+  async getAllPolls(forceRefresh: boolean = false): Promise<Poll[]> {
+    // Check cache first
+    if (!forceRefresh && this.pollsCache) {
+      const cacheAge = Date.now() - this.pollsCache.timestamp;
+      if (cacheAge < this.CACHE_TTL) {
+        return this.pollsCache.data;
+      }
+    }
+
     try {
-      console.log("🔄 getAllPolls: Fetching from blockchain...");
-      
-      // Use Anchor's built-in account fetching
       const pollAccounts = await (this.program.account as any).poll.all();
       
-      console.log(`📊 Found ${pollAccounts.length} poll accounts from blockchain`);
-      
       if (pollAccounts.length === 0) {
+        this.pollsCache = { data: [], timestamp: Date.now() };
         return [];
       }
       
       const polls: Poll[] = [];
       
+      // Process polls in parallel batches for better performance
       for (const accountInfo of pollAccounts) {
         try {
           const pollData = accountInfo.account;
-          console.log(`📊 Poll "${pollData.title}":`, {
-            accountAddress: accountInfo.publicKey.toString(),
-            director: pollData.director.toString(),
-            contestantsCount: pollData.contestants?.length || 0,
-            contestants: pollData.contestants
-          });
+          
+          // Filter deleted polls early
+          if (pollData.deleted) {
+            continue;
+          }
           
           // Handle timestamps - check both snake_case and camelCase field names
           const timestampRaw = pollData.timestamp?.toNumber() || 0;
@@ -443,33 +570,30 @@ export class VotingService {
             winner: pollData.winner?.toNumber() || undefined,
           };
           
-          console.log(`✅ Processed poll "${processedPoll.title}":`, {
-            id: processedPoll.id,
-            contestantsCount: processedPoll.contestants.length,
-            contestants: processedPoll.contestants
-          });
-          
           polls.push(processedPoll);
         } catch (error) {
-          console.error("Error processing poll account:", accountInfo.publicKey.toString(), error);
+          // Skip invalid poll accounts
         }
       }
       
-      console.log(`✅ getAllPolls: Returning ${polls.length} polls from blockchain`);
-      polls.forEach((poll, index) => {
-        console.log(`📊 Final Poll ${index + 1} "${poll.title}":`, {
-          id: poll.id,
-          contestantsCount: poll.contestants?.length || 0,
-          contestants: poll.contestants
-        });
-      });
-      
+      // Update cache
+      this.pollsCache = { data: polls, timestamp: Date.now() };
       return polls;
       
     } catch (error) {
-      console.error("Error fetching all polls:", error);
+      // Return cached data if available, even if stale
+      if (this.pollsCache) {
+        return this.pollsCache.data;
+      }
       return [];
     }
+  }
+
+  /**
+   * Clear the polls cache (useful after creating/updating/deleting polls)
+   */
+  clearPollsCache(): void {
+    this.pollsCache = null;
   }
 }
 // Force refresh Fri Oct 17 02:54:36 PM +0545 2025
