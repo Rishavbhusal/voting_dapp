@@ -1,5 +1,5 @@
 // Integration test for VotingService with IDL
-import { VotingService } from './services/votingService';
+import { VotingService } from '../services/votingService';
 import { Connection, PublicKey } from '@solana/web3.js';
 
 // Test configuration

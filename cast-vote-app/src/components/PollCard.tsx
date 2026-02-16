@@ -95,7 +95,7 @@ const PollCard = ({ poll }: PollCardProps) => {
               <Calendar className="w-4 h-4" />
               <span>
                 {isActive ? "Ends" : isUpcoming ? "Starts" : "Ended"}{" "}
-                {format(isActive || isUpcoming ? poll.endsAt : poll.endsAt, "MMM d, yyyy 'at' h:mm a")}
+                {format(isUpcoming ? poll.startsAt : poll.endsAt, "MMM d, yyyy 'at' h:mm a")}
               </span>
             </div>
           </div>

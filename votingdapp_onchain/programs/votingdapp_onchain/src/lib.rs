@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 
-declare_id!("GKitHVjmys9uUNowfWQy1jmuDgXKXcfSjCtpNG9cuQ1E");
+declare_id!("8gbFCLsHxGtpGMxkPmoEYmgKQKFbcQangq3qTEuPjdb7");
 
 // -----------------------
 // === CONFIGURATION ====
 // -----------------------
 // Replace this string with your admin wallet pubkey (base58)
-const ADMIN: &str = "GHjCZ5SsSWedrFJLyHKU6JM1GoPoFXBdbXfrdFiU4eJS";
+const ADMIN: &str = "Bundt9yGXifxnNMWJMnEQj2EwNPtyJiq7XeqE9Eb98Mg";
 
 #[program]
 pub mod voting {
@@ -331,9 +331,9 @@ pub struct FinalizePoll<'info> {
     pub payer: Signer<'info>,
 }
 
-// -----------------------
+
 // ======== DATA =========
-// -----------------------
+
 
 #[account]
 pub struct Poll {
@@ -413,9 +413,9 @@ fn calculate_poll_space(num_contestants: usize, num_voters: usize) -> usize {
     base_size + (contestant_size * num_contestants)
 }
 
-// -----------------------
+
 // ====== ERRORS =========
-// -----------------------
+
 
 #[error_code]
 pub enum ErrorCode {

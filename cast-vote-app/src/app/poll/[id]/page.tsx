@@ -209,11 +209,26 @@ export default function PollDetailPage() {
         return;
       }
       
+      // Frontend validation
+      if (contestantData.name.length > 50) {
+        toast.error("Contestant name must be 50 characters or less");
+        return;
+      }
+      if (contestantData.image.length > 200) {
+        toast.error("Image URL must be 200 characters or less. Please use a shorter URL.");
+        return;
+      }
+      
       const result = await addContestant({
         title: poll.title,
         name: contestantData.name,
         image: contestantData.image,
       });
+      
+      if (!result) {
+        toast.error("Failed to add contestant. Please check the error message above.");
+        return;
+      }
       
       toast.success(`Contestant "${contestantData.name}" added successfully!`);
       setShowAddContestant(false);
@@ -221,7 +236,24 @@ export default function PollDetailPage() {
       await refetch();
       
     } catch (error: any) {
-      toast.error("Failed to add contestant: " + (error?.message || "Unknown error"));
+      console.error("❌ Add contestant error:", error);
+      let errorMessage = "Failed to add contestant";
+      
+      if (error?.message) {
+        if (error.message.includes("StringTooLong")) {
+          errorMessage = "Image URL is too long (max 200 characters) or name is too long (max 50 characters)";
+        } else if (error.message.includes("DuplicateContestantName")) {
+          errorMessage = "A contestant with this name already exists";
+        } else if (error.message.includes("PollAlreadyStarted")) {
+          errorMessage = "Cannot add contestants after poll has started";
+        } else if (error.message.includes("EmptyString")) {
+          errorMessage = "Name cannot be empty";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -393,7 +425,7 @@ export default function PollDetailPage() {
                   <div className="flex flex-col">
                     <span>
                       {isActive ? "Ends" : isUpcoming ? "Starts" : "Ended"}{" "}
-                      {format(new Date(isActive || isUpcoming ? poll.endsAt : poll.endsAt), "MMM d, yyyy 'at' h:mm a")}
+                      {format(new Date(isUpcoming ? poll.startsAt : poll.endsAt), "MMM d, yyyy 'at' h:mm a")}
                     </span>
                     {isUpcoming && (
                       <span className="text-xs text-muted-foreground">

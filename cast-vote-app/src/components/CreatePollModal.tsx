@@ -55,10 +55,6 @@ export const CreatePollModal = ({ onSuccess }: CreatePollModalProps) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result as string;
-        if (result.length > 500) {
-          alert("Image is too large. Please use a smaller image or a URL instead.");
-          return;
-        }
         setFormData({ ...formData, image: result });
       };
       reader.readAsDataURL(file);
@@ -259,7 +255,7 @@ export const CreatePollModal = ({ onSuccess }: CreatePollModalProps) => {
                 id="image"
                 value={formData.image}
                 onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                placeholder="Enter image URL or upload image"
+                placeholder="Enter image of a poll"
                 required
               />
               
@@ -299,8 +295,8 @@ export const CreatePollModal = ({ onSuccess }: CreatePollModalProps) => {
                     Placeholder
                   </Button>
                 </div>
-                <p className="mt-2">
-                  <strong>Current length:</strong> {formData.image.length}/500 characters
+                <p className="mt-2 text-xs text-muted-foreground">
+                  <strong>Current length:</strong> {formData.image.length} characters
                 </p>
               </div>
             </div>

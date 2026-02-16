@@ -82,36 +82,40 @@ export const usePoll = (pollId: number) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPoll = useCallback(async () => {
-    if (!votingService) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const allPolls = await votingService.getAllPolls();
-      const pollData = allPolls.find(p => p.id === pollId);
-      
-      if (pollData) {
-        setPoll(pollData);
-      } else {
-        setPoll(null);
-        setError(`Poll with ID ${pollId} not found`);
+  const fetchPoll = useCallback(
+    async (forceRefresh: boolean = false) => {
+      if (!votingService) {
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch poll");
-    } finally {
-      setLoading(false);
-    }
-  }, [votingService, pollId]);
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const allPolls = await votingService.getAllPolls(forceRefresh);
+        const pollData = allPolls.find((p) => p.id === pollId);
+
+        if (pollData) {
+          setPoll(pollData);
+        } else {
+          setPoll(null);
+          setError(`Poll with ID ${pollId} not found`);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch poll");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [votingService, pollId]
+  );
 
   useEffect(() => {
     fetchPoll();
   }, [fetchPoll]);
 
+  // refetch can now accept forceRefresh?: boolean
   return { poll, loading, error, refetch: fetchPoll };
 };
 

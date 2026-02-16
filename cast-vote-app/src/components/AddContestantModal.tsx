@@ -23,12 +23,35 @@ const AddContestantModal = ({ isOpen, onClose, onSubmit, loading = false }: AddC
     name: "",
     image: "",
   });
+  const [errors, setErrors] = useState({
+    name: "",
+    image: "",
+  });
+
+  const validateForm = () => {
+    const newErrors = { name: "", image: "" };
+    let isValid = true;
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
+      isValid = false;
+    }
+
+    if (!formData.image.trim()) {
+      newErrors.image = "Image URL is required";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.name.trim() && formData.image.trim()) {
+    if (validateForm()) {
       onSubmit(formData);
       setFormData({ name: "", image: "" });
+      setErrors({ name: "", image: "" });
     }
   };
 
@@ -53,10 +76,20 @@ const AddContestantModal = ({ isOpen, onClose, onSubmit, loading = false }: AddC
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, name: e.target.value });
+                if (errors.name) setErrors({ ...errors, name: "" });
+              }}
               placeholder="Enter contestant name"
               required
+              className={errors.name ? "border-red-500" : ""}
             />
+            {errors.name && (
+              <p className="text-xs text-red-500">{errors.name}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Length: {formData.name.length} characters
+            </p>
           </div>
           
           <div className="space-y-2">
@@ -64,10 +97,17 @@ const AddContestantModal = ({ isOpen, onClose, onSubmit, loading = false }: AddC
             <Input
               id="image"
               value={formData.image}
-              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              placeholder="Enter image URL or use quick options"
+              onChange={(e) => {
+                setFormData({ ...formData, image: e.target.value });
+                if (errors.image) setErrors({ ...errors, image: "" });
+              }}
+              placeholder="Enter image of  a candidate"
               required
+              className={errors.image ? "border-red-500" : ""}
             />
+            {errors.image && (
+              <p className="text-xs text-red-500">{errors.image}</p>
+            )}
             <div className="flex flex-wrap gap-2 mt-1">
               <Button 
                 type="button" 
@@ -87,7 +127,7 @@ const AddContestantModal = ({ isOpen, onClose, onSubmit, loading = false }: AddC
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Length: {formData.image.length}/500 characters
+              Length: {formData.image.length} characters
             </p>
           </div>
           

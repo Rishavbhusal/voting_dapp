@@ -1,19 +1,21 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
 import Navbar from "@/components/Navbar";
 import ContestantCard from "@/components/ContestantCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, Users, Plus } from "lucide-react";
+import { ArrowLeft, Calendar, Users, Plus, Trophy } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { usePoll, useVote, useAddContestant } from "@/hooks/useVoting";
+import { usePoll, useVote, useAddContestant, useFinalizePoll } from "@/hooks/useVoting";
 import { useAdmin } from "@/contexts/AdminContext";
 import AddContestantModal from "@/components/AddContestantModal";
 
 const PollDetail = () => {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
   const { connected, publicKey } = useWallet();
   const [showAddContestant, setShowAddContestant] = useState(false);
   const [hasVotedLocally, setHasVotedLocally] = useState(false);
@@ -22,17 +24,48 @@ const PollDetail = () => {
   const { poll, loading, error, refetch } = usePoll(Number(id));
   const { vote, loading: voting } = useVote();
   const { addContestant, loading: addingContestant } = useAddContestant();
+  const { finalizePoll, loading: finalizing } = useFinalizePoll();
   const { isAdmin: isAdminFn } = useAdmin();
   const isAdmin = isAdminFn(publicKey);
 
-  // Check localStorage for voting status when poll and publicKey are available
+  // Check voting status - prioritize blockchain state over localStorage
   useEffect(() => {
     if (poll && publicKey) {
-      const votedPolls = JSON.parse(localStorage.getItem('votedPolls') || '[]');
-      const hasVoted = votedPolls.some((vp: any) => 
-        vp.pollTitle === poll.title && vp.walletAddress === publicKey.toString()
-      );
-      setHasVotedLocally(hasVoted);
+      // First check blockchain state (most reliable)
+      const hasVotedOnBlockchain = poll.voters.includes(publicKey.toString());
+      
+      if (hasVotedOnBlockchain) {
+        // User has voted on blockchain, sync localStorage
+        setHasVotedLocally(true);
+        const votedPolls = JSON.parse(localStorage.getItem('votedPolls') || '[]');
+        const alreadyInLocalStorage = votedPolls.some((vp: any) => 
+          vp.pollTitle === poll.title && vp.walletAddress === publicKey.toString()
+        );
+        if (!alreadyInLocalStorage) {
+          // Add to localStorage if not already there
+          const newVote = {
+            pollTitle: poll.title,
+            walletAddress: publicKey.toString(),
+            votedAt: Date.now()
+          };
+          votedPolls.push(newVote);
+          localStorage.setItem('votedPolls', JSON.stringify(votedPolls));
+        }
+      } else {
+        // User hasn't voted on blockchain, clear localStorage entry if exists
+        setHasVotedLocally(false);
+        const votedPolls = JSON.parse(localStorage.getItem('votedPolls') || '[]');
+        const filteredPolls = votedPolls.filter((vp: any) => 
+          !(vp.pollTitle === poll.title && vp.walletAddress === publicKey.toString())
+        );
+        if (filteredPolls.length !== votedPolls.length) {
+          // Removed an entry, update localStorage
+          localStorage.setItem('votedPolls', JSON.stringify(filteredPolls));
+        }
+      }
+    } else if (poll && !publicKey) {
+      // No wallet connected, reset local state
+      setHasVotedLocally(false);
     }
   }, [poll, publicKey]);
 
@@ -71,10 +104,35 @@ const PollDetail = () => {
   const now = Date.now();
   const isActive = now >= poll.startsAt && now <= poll.endsAt;
   const isUpcoming = now < poll.startsAt;
+  const hasEnded = now > poll.endsAt;
   
-  // Check if current user has voted by looking at poll's voters list OR local state
-  const userHasVotedFromBlockchain = publicKey ? poll.voters.includes(publicKey.toString()) : false;
-  const userHasVoted = userHasVotedFromBlockchain || hasVotedLocally;
+  // Check if current user has voted - ONLY use blockchain state (source of truth)
+  // Also check that poll actually has votes (safety check for data consistency)
+  const userHasVoted = publicKey && poll.voters && Array.isArray(poll.voters) && poll.votes > 0
+    ? poll.voters.includes(publicKey.toString()) 
+    : false;
+
+  // Check if there are any votes (either total votes or any contestant has votes)
+  const hasVotes = poll.votes > 0 || (poll.contestants && poll.contestants.some((c: any) => c.votes > 0));
+  
+  // Always display the contestant with the most votes as the winner if any contestant has votes
+  // If there is a tie for most votes, display a tie message
+  let winnerContestant = null;
+  let isTie = false;
+  if (poll.finalized && poll.contestants && poll.contestants.length > 0) {
+    const contestantsWithVotes = poll.contestants.filter((c: any) => c.votes > 0);
+    if (contestantsWithVotes.length > 0) {
+      // Find the highest vote count
+      const maxVotes = Math.max(...contestantsWithVotes.map((c: any) => c.votes));
+      // Find all contestants with the highest vote count
+      const topContestants = contestantsWithVotes.filter((c: any) => c.votes === maxVotes);
+      if (topContestants.length > 1) {
+        isTie = true;
+      } else {
+        winnerContestant = topContestants[0];
+      }
+    }
+  }
 
   const handleVote = async (contestantId: number) => {
     if (!connected) {
@@ -137,6 +195,7 @@ const PollDetail = () => {
         toast.success("Vote submitted successfully!");
         
         // Save to localStorage and update local state
+        if (!publicKey) return;
         const votedPolls = JSON.parse(localStorage.getItem('votedPolls') || '[]');
         const newVote = {
           pollTitle: poll.title,
@@ -154,7 +213,7 @@ const PollDetail = () => {
         localStorage.setItem('votedPolls', JSON.stringify(updatedPolls));
         
         setHasVotedLocally(true); // Immediately disable vote button
-        refetch(); // Refresh poll data to show updated vote counts and voters list
+        refetch(true); // Force refresh poll data from blockchain after voting
       }
     } catch (error: any) {
       // Handle specific error messages
@@ -188,10 +247,36 @@ const PollDetail = () => {
       toast.success(`Contestant "${contestantData.name}" added successfully!`);
       setShowAddContestant(false);
       
-      await refetch();
+      await refetch(true); // Force refresh poll data from blockchain after adding contestant
       
-    } catch (error) {
-      toast.error("Failed to add contestant: " + error.message);
+    } catch (error: any) {
+      toast.error("Failed to add contestant: " + (error?.message || "Unknown error"));
+    }
+  };
+
+  const handleFinalizePoll = async () => {
+    try {
+      if (!isAdmin) {
+        toast.error("Only admin can finalize polls");
+        return;
+      }
+      
+      if (!connected) {
+        toast.error("Please connect your wallet first");
+        return;
+      }
+      
+      const result = await finalizePoll(poll.title);
+      
+      if (result) {
+        toast.success("Poll finalized successfully! Winner has been determined.");
+        await refetch(true); // Force refresh poll data from blockchain after finalizing
+      } else {
+        toast.error("Failed to finalize poll");
+      }
+    } catch (error: any) {
+      console.error("❌ handleFinalizePoll error:", error);
+      toast.error("Failed to finalize poll: " + (error?.message || "Unknown error"));
     }
   };
 
@@ -213,7 +298,7 @@ const PollDetail = () => {
       <Navbar />
       
       <div className="container mx-auto px-4 pt-24">
-        <Link to="/">
+        <Link href="/">
           <Button variant="ghost" className="mb-6">
             Back to Polls
           </Button>
@@ -244,7 +329,7 @@ const PollDetail = () => {
                   <Calendar className="w-5 h-5 text-primary" />
                   <span>
                     {isActive ? "Ends" : isUpcoming ? "Starts" : "Ended"}{" "}
-                    {format(new Date(isActive || isUpcoming ? poll.endsAt : poll.endsAt), "MMM d, yyyy 'at' h:mm a")}
+                    {format(new Date(isUpcoming ? poll.startsAt : poll.endsAt), "MMM d, yyyy 'at' h:mm a")}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -255,6 +340,58 @@ const PollDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* Winner Announcement */}
+        {hasEnded && poll.finalized && (
+          <div className="mb-8 p-6 bg-gradient-to-r from-accent/20 to-primary/20 border-2 border-accent rounded-2xl">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-16 h-16 rounded-full bg-accent/30 flex items-center justify-center">
+                  <Trophy className="w-8 h-8 text-accent" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold mb-1 gradient-text">Poll Finalized!</h3>
+                {isTie ? (
+                  <p className="text-lg text-muted-foreground">
+                    The vote is tied, no one wins.
+                  </p>
+                ) : winnerContestant ? (
+                  <p className="text-lg text-muted-foreground">
+                    <span className="font-semibold text-foreground">{winnerContestant.name}</span> won with <span className="font-semibold text-foreground">{winnerContestant.votes}</span> {winnerContestant.votes === 1 ? 'vote' : 'votes'}
+                  </p>
+                ) : hasVotes ? (
+                  <p className="text-lg text-muted-foreground">
+                    Winner could not be determined. Please check contestant vote counts below.
+                  </p>
+                ) : (
+                  <p className="text-lg text-muted-foreground">
+                    No votes were cast in this poll.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Finalize Poll Button */}
+        {hasEnded && !poll.finalized && isAdmin && (
+          <div className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-yellow-600 mb-1">Poll Has Ended</p>
+                <p className="text-sm text-yellow-600/90">Finalize the poll to determine and announce the winner.</p>
+              </div>
+              <Button 
+                onClick={handleFinalizePoll}
+                disabled={finalizing}
+                className="bg-accent hover:bg-accent/90"
+              >
+                {finalizing ? "Finalizing..." : "Finalize Poll"}
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">

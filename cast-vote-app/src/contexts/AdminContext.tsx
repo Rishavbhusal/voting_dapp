@@ -13,7 +13,7 @@ interface AdminProviderProps {
 }
 
 export const AdminProvider = ({ children }: AdminProviderProps) => {
-  const adminAddress = new PublicKey("GHjCZ5SsSWedrFJLyHKU6JM1GoPoFXBdbXfrdFiU4eJS");
+  const adminAddress = new PublicKey("Bundt9yGXifxnNMWJMnEQj2EwNPtyJiq7XeqE9Eb98Mg");
 
   const isAdmin = (address: PublicKey | null): boolean => {
     if (!address) return false;

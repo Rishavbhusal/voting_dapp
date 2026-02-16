@@ -18,7 +18,8 @@ import {
   VotingError
 } from "@/types/frontend";
 
-  const PROGRAM_ID = new PublicKey("GKitHVjmys9uUNowfWQy1jmuDgXKXcfSjCtpNG9cuQ1E");
+  // TODO: Update this to your new deployed program address
+  const PROGRAM_ID = new PublicKey("8gbFCLsHxGtpGMxkPmoEYmgKQKFbcQangq3qTEuPjdb7");
 
 export class VotingService {
   private program: Program;
@@ -61,7 +62,7 @@ export class VotingService {
   async createPoll(params: CreatePollParams): Promise<string> {
     
     // Use admin public key for PDA derivation (consistent with vote function)
-    const ADMIN_PUBKEY = new PublicKey("GHjCZ5SsSWedrFJLyHKU6JM1GoPoFXBdbXfrdFiU4eJS");
+    const ADMIN_PUBKEY = new PublicKey("Bundt9yGXifxnNMWJMnEQj2EwNPtyJiq7XeqE9Eb98Mg");
     const [pollPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(params.title), ADMIN_PUBKEY.toBuffer()],
       this.program.programId
@@ -107,6 +108,35 @@ export class VotingService {
       this.clearPollsCache();
       return tx;
     } catch (error: any) {
+      // Extract better error messages from Anchor errors
+      if (error?.error?.errorMessage) {
+        error.message = error.error.errorMessage;
+      } else if (error?.error?.code) {
+        const errorCode = error.error.code;
+        const errorMessages: { [key: number]: string } = {
+          6008: "A contestant with this name already exists in this poll",
+          6012: "Image URL is too long (max 200 characters) or name is too long (max 50 characters)",
+          6013: "Name cannot be empty",
+          6005: "Cannot add contestants after poll has started",
+          6014: "Too many contestants (max 20 allowed)",
+          6000: "You are not authorized. Only admin can add contestants",
+        };
+        error.message = errorMessages[errorCode] || error.message || "Failed to add contestant";
+      } else if (error?.logs) {
+        // Try to extract error from logs
+        const logString = error.logs?.join(" ") || "";
+        if (logString.includes("StringTooLong")) {
+          error.message = "Image URL is too long (max 200 characters) or name is too long (max 50 characters)";
+        } else if (logString.includes("DuplicateContestantName")) {
+          error.message = "A contestant with this name already exists in this poll";
+        } else if (logString.includes("PollAlreadyStarted")) {
+          error.message = "Cannot add contestants after poll has started";
+        } else if (logString.includes("EmptyString")) {
+          error.message = "Name cannot be empty";
+        } else if (logString.includes("TooManyContestants")) {
+          error.message = "Too many contestants (max 20 allowed)";
+        }
+      }
       throw error;
     }
   }
