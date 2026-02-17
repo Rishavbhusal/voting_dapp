@@ -19,7 +19,7 @@ import {
 } from "@/types/frontend";
 
   // TODO: Update this to your new deployed program address
-  const PROGRAM_ID = new PublicKey("8gbFCLsHxGtpGMxkPmoEYmgKQKFbcQangq3qTEuPjdb7");
+  const PROGRAM_ID = new PublicKey("3yWZmpSi33KFP4zqWcGxSj4qHfxejbvNwCWgCS9pEgNo");
 
 export class VotingService {
   private program: Program;

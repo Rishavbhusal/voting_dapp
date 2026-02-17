@@ -1,11 +1,10 @@
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 
-declare_id!("8gbFCLsHxGtpGMxkPmoEYmgKQKFbcQangq3qTEuPjdb7");
+declare_id!("3yWZmpSi33KFP4zqWcGxSj4qHfxejbvNwCWgCS9pEgNo");
 
-// -----------------------
 // === CONFIGURATION ====
-// -----------------------
+
 // Replace this string with your admin wallet pubkey (base58)
 const ADMIN: &str = "Bundt9yGXifxnNMWJMnEQj2EwNPtyJiq7XeqE9Eb98Mg";
 

@@ -30,19 +30,21 @@ const PollDetail = () => {
 
   // Check voting status - prioritize blockchain state over localStorage
   useEffect(() => {
-    if (poll && publicKey) {
-      // First check blockchain state (most reliable)
+    // After poll is finalized, always ignore localStorage for winner logic and force UI to use only visible contestant data
+    if (poll && poll.finalized) {
+      setHasVotedLocally(false);
+      return;
+    }
+    // Only use localStorage for voting state if poll is not finalized
+    if (poll && publicKey && !poll.finalized) {
       const hasVotedOnBlockchain = poll.voters.includes(publicKey.toString());
-      
       if (hasVotedOnBlockchain) {
-        // User has voted on blockchain, sync localStorage
         setHasVotedLocally(true);
         const votedPolls = JSON.parse(localStorage.getItem('votedPolls') || '[]');
         const alreadyInLocalStorage = votedPolls.some((vp: any) => 
           vp.pollTitle === poll.title && vp.walletAddress === publicKey.toString()
         );
         if (!alreadyInLocalStorage) {
-          // Add to localStorage if not already there
           const newVote = {
             pollTitle: poll.title,
             walletAddress: publicKey.toString(),
@@ -52,19 +54,16 @@ const PollDetail = () => {
           localStorage.setItem('votedPolls', JSON.stringify(votedPolls));
         }
       } else {
-        // User hasn't voted on blockchain, clear localStorage entry if exists
         setHasVotedLocally(false);
         const votedPolls = JSON.parse(localStorage.getItem('votedPolls') || '[]');
         const filteredPolls = votedPolls.filter((vp: any) => 
           !(vp.pollTitle === poll.title && vp.walletAddress === publicKey.toString())
         );
         if (filteredPolls.length !== votedPolls.length) {
-          // Removed an entry, update localStorage
           localStorage.setItem('votedPolls', JSON.stringify(filteredPolls));
         }
       }
-    } else if (poll && !publicKey) {
-      // No wallet connected, reset local state
+    } else if (poll && !publicKey && !poll.finalized) {
       setHasVotedLocally(false);
     }
   }, [poll, publicKey]);
@@ -342,7 +341,8 @@ const PollDetail = () => {
         </div>
 
         {/* Winner Announcement */}
-        {hasEnded && poll.finalized && (
+        {/* Always render winner using only frontend contestant data, regardless of finalized state or localStorage */}
+        {poll.contestants && poll.contestants.length > 0 && (
           <div className="mb-8 p-6 bg-gradient-to-r from-accent/20 to-primary/20 border-2 border-accent rounded-2xl">
             <div className="flex items-center gap-4">
               <div className="flex-shrink-0">
@@ -351,24 +351,18 @@ const PollDetail = () => {
                 </div>
               </div>
               <div className="flex-1">
-                <h3 className="text-2xl font-bold mb-1 gradient-text">Poll Finalized!</h3>
-                {isTie ? (
-                  <p className="text-lg text-muted-foreground">
-                    The vote is tied, no one wins.
-                  </p>
-                ) : winnerContestant ? (
-                  <p className="text-lg text-muted-foreground">
-                    <span className="font-semibold text-foreground">{winnerContestant.name}</span> won with <span className="font-semibold text-foreground">{winnerContestant.votes}</span> {winnerContestant.votes === 1 ? 'vote' : 'votes'}
-                  </p>
-                ) : hasVotes ? (
-                  <p className="text-lg text-muted-foreground">
-                    Winner could not be determined. Please check contestant vote counts below.
-                  </p>
-                ) : (
-                  <p className="text-lg text-muted-foreground">
-                    No votes were cast in this poll.
-                  </p>
-                )}
+                <h3 className="text-2xl font-bold mb-1 gradient-text">Poll Winner</h3>
+                {(() => {
+                  const maxVotes = Math.max(...poll.contestants.map((c: any) => c.votes));
+                  const winners = poll.contestants.filter((c: any) => c.votes === maxVotes && maxVotes > 0);
+                  if (winners.length === 0) {
+                    return <p className="text-lg text-muted-foreground">No votes were cast in this poll.</p>;
+                  }
+                  if (winners.length === 1) {
+                    return <p className="text-lg text-muted-foreground"><span className="font-semibold text-foreground">{winners[0].name}</span> won with <span className="font-semibold text-foreground">{winners[0].votes}</span> {winners[0].votes === 1 ? 'vote' : 'votes'}.</p>;
+                  }
+                  return <p className="text-lg text-muted-foreground">Tie between {winners.map((w: any, i: number) => <span key={w.name} className="font-semibold text-foreground">{w.name}{i < winners.length - 1 ? ', ' : ''}</span>)} with <span className="font-semibold text-foreground">{maxVotes}</span> {maxVotes === 1 ? 'vote' : 'votes'} each.</p>;
+                })()}
               </div>
             </div>
           </div>
