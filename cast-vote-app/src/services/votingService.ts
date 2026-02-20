@@ -60,13 +60,14 @@ export class VotingService {
    * Create a new poll
    */
   async createPoll(params: CreatePollParams): Promise<string> {
-    
     // Use admin public key for PDA derivation (consistent with vote function)
     const ADMIN_PUBKEY = new PublicKey("Bundt9yGXifxnNMWJMnEQj2EwNPtyJiq7XeqE9Eb98Mg");
     const [pollPda] = PublicKey.findProgramAddressSync(
       [Buffer.from(params.title), ADMIN_PUBKEY.toBuffer()],
       this.program.programId
     );
+
+    console.log("[createPoll] Poll PDA:", pollPda.toString());
 
     const tx = await this.program.methods
       .createPoll(
@@ -83,6 +84,7 @@ export class VotingService {
       })
       .rpc();
 
+    console.log("[createPoll] Transaction signature:", tx);
     return tx;
   }
 
@@ -165,17 +167,21 @@ export class VotingService {
     try {
       const pollAccounts = await (this.program.account as any).poll.all();
       const pollAccount = pollAccounts.find((p: any) => p.account.title === params.title);
-      
+
       if (!pollAccount) {
         throw new Error(`Poll "${params.title}" not found on blockchain`);
       }
-      
+
       const directorPubkey = pollAccount.account.director;
-      
+
       const [expectedPda] = PublicKey.findProgramAddressSync(
         [Buffer.from(params.title), directorPubkey.toBuffer()],
         this.program.programId
       );
+
+      console.log(`[vote] Using poll PDA:`, expectedPda.toString());
+      console.log(`[vote] Actual poll account address:`, pollAccount.publicKey.toString());
+      console.log(`[vote] Voting as:`, this.provider.wallet.publicKey.toString());
 
       const tx = await this.program.methods
         .vote(new BN(params.contestantId))
@@ -257,17 +263,26 @@ export class VotingService {
   async finalizePoll(title: string): Promise<string> {
     console.log("🟢 finalizePoll called with title:", title);
     console.log("🟢 Current wallet:", this.provider.wallet.publicKey.toString());
-    
-    // Find the poll account on blockchain
+
+    // Force refetch poll data from blockchain before finalizing
     const pollAccounts = await (this.program.account as any).poll.all();
-    console.log("🟢 Found", pollAccounts.length, "poll accounts");
+    console.log("🟢 [finalizePoll] Refetched", pollAccounts.length, "poll accounts from blockchain");
     const pollAccount = pollAccounts.find((p: any) => p.account.title === title);
-    
+
     if (!pollAccount) {
       console.error("❌ Poll not found:", title);
       throw new Error(`Poll "${title}" not found on blockchain`);
     }
-    
+
+    // Log all contestant votes before finalizing
+    if (pollAccount.account.contestants && pollAccount.account.contestants.length > 0) {
+      pollAccount.account.contestants.forEach((c: any, idx: number) => {
+        console.log(`[finalizePoll] Contestant #${idx}: name=${c.name}, id=${c.id}, votes=${c.votes}`);
+      });
+    } else {
+      console.log("[finalizePoll] No contestants found in poll.");
+    }
+
     console.log("🟢 Poll found:", {
       title: pollAccount.account.title,
       director: pollAccount.account.director.toString(),

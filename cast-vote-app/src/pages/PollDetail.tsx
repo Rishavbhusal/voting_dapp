@@ -340,9 +340,8 @@ const PollDetail = () => {
           </div>
         </div>
 
-        {/* Winner Announcement */}
-        {/* Always render winner using only frontend contestant data, regardless of finalized state or localStorage */}
-        {poll.contestants && poll.contestants.length > 0 && (
+        {/* Winner Announcement (on-chain winner after finalization) */}
+        {poll.finalized && poll.contestants && poll.contestants.length > 0 && (
           <div className="mb-8 p-6 bg-gradient-to-r from-accent/20 to-primary/20 border-2 border-accent rounded-2xl">
             <div className="flex items-center gap-4">
               <div className="flex-shrink-0">
@@ -353,15 +352,50 @@ const PollDetail = () => {
               <div className="flex-1">
                 <h3 className="text-2xl font-bold mb-1 gradient-text">Poll Winner</h3>
                 {(() => {
-                  const maxVotes = Math.max(...poll.contestants.map((c: any) => c.votes));
-                  const winners = poll.contestants.filter((c: any) => c.votes === maxVotes && maxVotes > 0);
-                  if (winners.length === 0) {
+                  const contestantsWithVotes = poll.contestants.filter((c: any) => c.votes > 0);
+                  if (contestantsWithVotes.length === 0) {
                     return <p className="text-lg text-muted-foreground">No votes were cast in this poll.</p>;
                   }
-                  if (winners.length === 1) {
-                    return <p className="text-lg text-muted-foreground"><span className="font-semibold text-foreground">{winners[0].name}</span> won with <span className="font-semibold text-foreground">{winners[0].votes}</span> {winners[0].votes === 1 ? 'vote' : 'votes'}.</p>;
+                  if (poll.winner !== undefined && poll.winner !== null) {
+                    const winner = poll.contestants.find((c: any) => c.id === poll.winner);
+                    if (!winner) {
+                      return <p className="text-lg text-muted-foreground">Winner not found.</p>;
+                    }
+                    return <p className="text-lg text-muted-foreground"><span className="font-semibold text-foreground">{winner.name}</span> won with <span className="font-semibold text-foreground">{winner.votes}</span> {winner.votes === 1 ? 'vote' : 'votes'}.</p>;
                   }
-                  return <p className="text-lg text-muted-foreground">Tie between {winners.map((w: any, i: number) => <span key={w.name} className="font-semibold text-foreground">{w.name}{i < winners.length - 1 ? ', ' : ''}</span>)} with <span className="font-semibold text-foreground">{maxVotes}</span> {maxVotes === 1 ? 'vote' : 'votes'} each.</p>;
+                  // fallback: show leader(s) if winner is not set
+                  const maxVotes = Math.max(...contestantsWithVotes.map((c: any) => c.votes));
+                  const leaders = contestantsWithVotes.filter((c: any) => c.votes === maxVotes);
+                  if (leaders.length === 1) {
+                    return <p className="text-lg text-muted-foreground"><span className="font-semibold text-foreground">{leaders[0].name}</span> is leading with <span className="font-semibold text-foreground">{leaders[0].votes}</span> {leaders[0].votes === 1 ? 'vote' : 'votes'}.</p>;
+                  }
+                  return <p className="text-lg text-muted-foreground">Tie between {leaders.map((w: any, i: number) => <span key={w.name} className="font-semibold text-foreground">{w.name}{i < leaders.length - 1 ? ', ' : ''}</span>)} with <span className="font-semibold text-foreground">{maxVotes}</span> {maxVotes === 1 ? 'vote' : 'votes'} each.</p>;
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Show current leader before finalization (optional) */}
+        {!poll.finalized && poll.contestants && poll.contestants.length > 0 && (
+          <div className="mb-8 p-6 bg-gradient-to-r from-accent/20 to-primary/20 border-2 border-accent rounded-2xl">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-16 h-16 rounded-full bg-accent/30 flex items-center justify-center">
+                  <Trophy className="w-8 h-8 text-accent" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold mb-1 gradient-text">Current Leader</h3>
+                {(() => {
+                  const maxVotes = Math.max(...poll.contestants.map((c: any) => c.votes));
+                  const leaders = poll.contestants.filter((c: any) => c.votes === maxVotes && maxVotes > 0);
+                  if (leaders.length === 0) {
+                    return <p className="text-lg text-muted-foreground">No votes yet.</p>;
+                  }
+                  if (leaders.length === 1) {
+                    return <p className="text-lg text-muted-foreground"><span className="font-semibold text-foreground">{leaders[0].name}</span> is leading with <span className="font-semibold text-foreground">{leaders[0].votes}</span> {leaders[0].votes === 1 ? 'vote' : 'votes'}.</p>;
+                  }
+                  return <p className="text-lg text-muted-foreground">Tie between {leaders.map((w: any, i: number) => <span key={w.name} className="font-semibold text-foreground">{w.name}{i < leaders.length - 1 ? ', ' : ''}</span>)} with <span className="font-semibold text-foreground">{maxVotes}</span> {maxVotes === 1 ? 'vote' : 'votes'} each.</p>;
                 })()}
               </div>
             </div>

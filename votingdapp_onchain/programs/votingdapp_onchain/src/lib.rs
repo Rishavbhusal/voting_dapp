@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 
-declare_id!("3yWZmpSi33KFP4zqWcGxSj4qHfxejbvNwCWgCS9pEgNo");
+declare_id!("3VMcUX755cgLoLH2cmGVkv6nLvNsDnN5Ubur9NPZw7KN");
 
 // === CONFIGURATION ====
 
